@@ -35,6 +35,11 @@ This project is licensed under the **MIT License**, see [LICENSE_MIT.txt](LICENS
 Changelog
 ---------
 
+### Version 1.26.3 - Unreleased
+
+- Added a `System` theme option that automatically switches between light and dark themes based on OS/browser color scheme
+- Added a new `Apple` style theme
+
 ### Version 1.26.2 - April 9, 2025
 
 - (Firefox) Removed Favicon Kit and Qwant favicon providers, added Ecosia and Icon Horse

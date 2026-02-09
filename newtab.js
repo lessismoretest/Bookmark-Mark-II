@@ -1096,15 +1096,28 @@ var config = {
 	number_recent: 10
 };
 
+var SYSTEM_THEME_NAME = 'System';
+var SYSTEM_THEME_LIGHT = 'Default';
+var SYSTEM_THEME_DARK = 'Midnight';
+var systemThemeMedia = null;
+
 // color theme values
 var themes = {
 	Default: {},
+	System: {},
 	Classic: {
 		font_color: '#000000',
 		background_color: '#ffffff',
 		highlight_color: '#3399ff',
 		highlight_font_color: '#ffffff',
 		shadow_color: '#97cbff'
+	},
+	Apple: {
+		font_color: '#1d1d1f',
+		background_color: '#f5f5f7',
+		highlight_color: '#0071e3',
+		highlight_font_color: '#ffffff',
+		shadow_color: '#6ea8e8'
 	},
 	Dusk: {
 		font_color: '#c8b9be',
@@ -1179,6 +1192,44 @@ var themes = {
 };
 var theme = {};
 
+function getSystemThemeName() {
+	if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+		return SYSTEM_THEME_DARK;
+	return SYSTEM_THEME_LIGHT;
+}
+
+function resolveThemeName(themeName) {
+	return themeName === SYSTEM_THEME_NAME ? getSystemThemeName() : themeName;
+}
+
+function applySelectedTheme(themeName) {
+	themeName = themeName || getConfig('theme');
+	theme = themes[resolveThemeName(themeName)] || {};
+}
+
+function refreshThemeFromSystem() {
+	if (getConfig('theme') != SYSTEM_THEME_NAME)
+		return;
+	applySelectedTheme(SYSTEM_THEME_NAME);
+	for (var i in config) {
+		if (i != 'theme') {
+			onChange(i);
+			showConfig(i);
+		}
+	}
+}
+
+function initSystemThemeListener() {
+	if (!window.matchMedia)
+		return;
+	if (!systemThemeMedia)
+		systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+	if (systemThemeMedia.addEventListener)
+		systemThemeMedia.addEventListener('change', refreshThemeFromSystem);
+	else if (systemThemeMedia.addListener)
+		systemThemeMedia.addListener(refreshThemeFromSystem);
+}
+
 // get config value or default
 function getConfig(key) {
 	var value = localStorage.getItem('options.' + key);
@@ -1200,7 +1251,7 @@ function setConfig(key, value) {
 	if (key == 'lock' || key == 'newtab' || key == 'show_root' || key.substring(0,6) == 'number')
 		loadColumns();
 	else if (key == 'theme') {
-		theme = themes[value];
+		applySelectedTheme(value);
 		for (var i in config) {
 			if (i != key) {
 				onChange(i);
@@ -1356,7 +1407,7 @@ function onChange(key, value) {
 // loads config settings
 function loadSettings() {
 	// load theme
-	theme = themes[getConfig('theme')] || {};
+	applySelectedTheme();
 	// load settings
 	for (var key in config)
 		if (key === 'background_image_file')
@@ -1580,6 +1631,7 @@ function showOptions(show) {
 
 // initialize page
 loadSettings();
+initSystemThemeListener();
 loadColumns();
 
 // keyboard shortcuts

@@ -1,6 +1,6 @@
 {
-	"name": "Humble New Tab Page",
-	"short_name": "HNTP",
+	"name": "Bookmark-Mark-II",
+	"short_name": "Bookmark-Mark-II",
 	"version": "1.26.2",
 	"minimum_chrome_version": "104",
 	"manifest_version": 3,
