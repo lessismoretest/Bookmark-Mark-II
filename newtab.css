@@ -9,9 +9,28 @@ body {
 	font-size: 62.5%;
 	line-height: 1;
 }
+#top_strip {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	gap: 0;
+	padding: 0 1.2em;
+	box-sizing: border-box;
+	overflow-x: auto;
+	overflow-y: hidden;
+	white-space: nowrap;
+	background: transparent;
+	backdrop-filter: none;
+	border-bottom: none;
+	z-index: 100;
+}
 #main {
 	width: 80%;
-	margin: 5% auto 0;
+	margin: calc(5% + 44px) auto 0;
 	position: relative;
 	max-width: 100%;
 	white-space: nowrap;
@@ -25,7 +44,7 @@ body {
 #main a + ul, #main a + div {
 	padding-left: 24px;
 }
-#main a {
+#main a, #top_strip a {
 	box-sizing: border-box;
 	max-width: 100%;
 	display: inline-block;
@@ -41,11 +60,34 @@ body {
 	transition-property: color, background-color, box-shadow, opacity;
 	transition-duration: 0.2s;
 	transition-timing-function: ease-out;
+	user-select: none;
 }
-#main a:hover {
+#main a:hover, #top_strip a:hover {
 	color: #000;
 	background-color: #E4F4FF;
 	box-shadow: 0 0 7px #57B0FF;
+}
+#top_strip a {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	margin-right: 0.3em;
+	line-height: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+#top_strip a .icon {
+	margin: 0;
+}
+#top_strip a.top-strip-dragging {
+	opacity: 0.55;
+}
+#top_strip a.top-strip-drop-before {
+	box-shadow: inset 2px 0 0 #57B0FF;
+}
+#top_strip a.top-strip-drop-after {
+	box-shadow: inset -2px 0 0 #57B0FF;
 }
 .icon {
 	display: inline-block;
@@ -123,6 +165,7 @@ body {
 	position: absolute;
 	top: 0;
 	right: 0;
+	z-index: 200;
 }
 #options {
 	display: none;

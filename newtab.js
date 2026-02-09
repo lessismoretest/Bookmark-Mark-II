@@ -1,5 +1,11 @@
 'use strict';
 
+var TOP_STRIP_HEIGHT = 44;
+var topStripDragId = null;
+var topStripDragged = false;
+var topStripDropTarget = null;
+var topStripDropAfter = false;
+
 // render a single bookmark node
 function render(node, target) {
 	if (node.description == 'separator') return;
@@ -16,6 +22,8 @@ function render(node, target) {
 	var text = node.title || node.name || '';
 	if (!text && node.title === null) text = node.url || '';
 	a.innerText = text;
+	if (node.id != null)
+		a.setAttribute('data-node-id', node.id);
 
 	if (node.tooltip) a.title = node.tooltip;
 	setClass(a, node);
@@ -151,6 +159,217 @@ function renderColumns() {
 	}
 
 	enableDragDrop();
+	renderTopStrip();
+}
+
+function getTopStripOrder(folderId) {
+	try {
+		var saved = JSON.parse(localStorage.getItem('top_strip.order.' + folderId) || '[]');
+		return Array.isArray(saved) ? saved : [];
+	} catch (e) {
+		return [];
+	}
+}
+
+function setTopStripOrder(folderId, order) {
+	localStorage.setItem('top_strip.order.' + folderId, JSON.stringify(order));
+}
+
+function sortTopStripIds(ids, folderId) {
+	var order = getTopStripOrder(folderId);
+	var rank = {};
+	for (var i = 0; i < order.length; i++)
+		rank[order[i]] = i;
+
+	return ids.slice(0).sort(function(a, b) {
+		var ai = rank.hasOwnProperty(a) ? rank[a] : Number.MAX_SAFE_INTEGER;
+		var bi = rank.hasOwnProperty(b) ? rank[b] : Number.MAX_SAFE_INTEGER;
+		if (ai == bi)
+			return ids.indexOf(a) - ids.indexOf(b);
+		return ai - bi;
+	});
+}
+
+function getTopStripOrderFromDom(strip) {
+	var order = [];
+	var links = strip.querySelectorAll('a[data-strip-id]');
+	for (var i = 0; i < links.length; i++)
+		order.push(links[i].getAttribute('data-strip-id'));
+	return order;
+}
+
+function findTopStripLink(strip, id) {
+	var links = strip.querySelectorAll('a[data-strip-id]');
+	for (var i = 0; i < links.length; i++) {
+		if (links[i].getAttribute('data-strip-id') == id)
+			return links[i];
+	}
+	return null;
+}
+
+function clearTopStripDropIndicator() {
+	if (!topStripDropTarget)
+		return;
+	topStripDropTarget.classList.remove('top-strip-drop-before');
+	topStripDropTarget.classList.remove('top-strip-drop-after');
+	topStripDropTarget = null;
+	topStripDropAfter = false;
+}
+
+function setTopStripDropIndicator(target, placeAfter) {
+	if (!target)
+		return;
+	if (topStripDropTarget === target && topStripDropAfter === placeAfter)
+		return;
+	clearTopStripDropIndicator();
+	topStripDropTarget = target;
+	topStripDropAfter = placeAfter;
+	target.classList.add(placeAfter ? 'top-strip-drop-after' : 'top-strip-drop-before');
+}
+
+function collectFolderLinks(node, result) {
+	if (!node)
+		return;
+	if (node.url) {
+		result.push({
+			id: String(node.id),
+			title: node.title || node.url,
+			url: node.url
+		});
+		return;
+	}
+	if (node.children) {
+		for (var i = 0; i < node.children.length; i++)
+			collectFolderLinks(node.children[i], result);
+	}
+}
+
+function renderTopStrip() {
+	var strip = document.getElementById('top_strip');
+	if (!strip)
+		return;
+
+	while (strip.firstChild)
+		strip.removeChild(strip.firstChild);
+
+	var folderId = getConfig('top_strip_folder');
+	if (!folderId)
+		return;
+
+	strip.ondragover = function(event) {
+		event.preventDefault();
+		var target = event.target;
+		while (target && target !== strip && !(target.tagName == 'A' && target.hasAttribute('data-strip-id')))
+			target = target.parentNode;
+		if (target && target !== strip) {
+			var rect = target.getBoundingClientRect();
+			setTopStripDropIndicator(target, event.clientX - rect.left > rect.width / 2);
+		} else if (strip.lastChild && strip.lastChild.tagName == 'A') {
+			setTopStripDropIndicator(strip.lastChild, true);
+		} else {
+			clearTopStripDropIndicator();
+		}
+	};
+	strip.ondragleave = function(event) {
+		if (!strip.contains(event.relatedTarget))
+			clearTopStripDropIndicator();
+	};
+	strip.ondrop = function(event) {
+		event.preventDefault();
+		var dragLink = findTopStripLink(strip, topStripDragId);
+		if (dragLink) {
+			if (topStripDropTarget && topStripDropTarget !== dragLink) {
+				var ref = topStripDropAfter ? topStripDropTarget.nextSibling : topStripDropTarget;
+				strip.insertBefore(dragLink, ref);
+			} else
+				strip.appendChild(dragLink);
+			setTopStripOrder(folderId, getTopStripOrderFromDom(strip));
+			topStripDragged = true;
+		}
+		clearTopStripDropIndicator();
+	};
+
+	chrome.bookmarks.getSubTree(folderId, function(result) {
+		if (!result || !result[0])
+			return;
+
+		var links = [];
+		collectFolderLinks(result[0], links);
+
+		var order = sortTopStripIds(links.map(function(a) { return a.id; }), folderId);
+		var map = {};
+		for (var i = 0; i < links.length; i++)
+			map[links[i].id] = links[i];
+
+		for (var j = 0; j < order.length; j++) {
+			var id = order[j];
+			var node = map[id];
+			if (!node)
+				continue;
+
+			(function(linkId, linkNode) {
+				var a = document.createElement('a');
+				a.href = linkNode.url;
+				a.draggable = true;
+				a.setAttribute('data-strip-id', linkId);
+				a.className = 'top-strip-icon';
+				a.title = linkNode.title || linkNode.url;
+				a.appendChild(getIcon(linkNode));
+
+				var newtab = getConfig('newtab');
+				if (newtab == 1)
+					a.target = '_blank';
+				a.onclick = function(event) {
+					if (topStripDragged) {
+						topStripDragged = false;
+						return false;
+					}
+					if (newtab == 2) {
+						openLink(linkNode, newtab);
+						return false;
+					}
+					var urlStart = linkNode.url.substring(0, 6);
+					if (urlStart === 'chrome' || urlStart === 'file:/') {
+						openLink(linkNode, newtab || (event.ctrlKey ? 2 : 0));
+						return false;
+					}
+					return true;
+				};
+				a.ondragstart = function(event) {
+					topStripDragId = linkId;
+					this.classList.add('top-strip-dragging');
+					event.dataTransfer.effectAllowed = 'move';
+					event.dataTransfer.setData('text/plain', linkId);
+				};
+				a.ondragend = function() {
+					this.classList.remove('top-strip-dragging');
+					topStripDragId = null;
+					clearTopStripDropIndicator();
+				};
+				a.ondragover = function(event) {
+					event.preventDefault();
+					var rect = this.getBoundingClientRect();
+					setTopStripDropIndicator(this, event.clientX - rect.left > rect.width / 2);
+				};
+				a.ondrop = function(event) {
+					event.preventDefault();
+					event.stopPropagation();
+					var dragLink = findTopStripLink(strip, topStripDragId);
+					if (!dragLink || dragLink === this)
+						return;
+
+					var rect = this.getBoundingClientRect();
+					var placeAfter = event.clientX - rect.left > rect.width / 2;
+					var reference = placeAfter ? this.nextSibling : this;
+					strip.insertBefore(dragLink, reference);
+					setTopStripOrder(folderId, getTopStripOrderFromDom(strip));
+					topStripDragged = true;
+					clearTopStripDropIndicator();
+				};
+				strip.appendChild(a);
+			})(id, node);
+		}
+	});
 }
 
 // enables click and context menu for given folder
@@ -1093,7 +1312,8 @@ var config = {
 	css: '',
 	number_top: 10,
 	number_closed: 10,
-	number_recent: 10
+	number_recent: 10,
+	top_strip_folder: ''
 };
 
 var SYSTEM_THEME_NAME = 'System';
@@ -1263,6 +1483,8 @@ function setConfig(key, value) {
 	// special case settings
 	if (key == 'lock' || key == 'newtab' || key == 'show_root' || key.substring(0,6) == 'number')
 		loadColumns();
+	else if (key == 'top_strip_folder')
+		renderTopStrip();
 	else if (key == 'theme') {
 		applySelectedTheme(value);
 		for (var i in config) {
@@ -1297,7 +1519,7 @@ function getStyle(key, value) {
 		case 'font_weight':
 			return '#main a { font-weight: ' + value + '; }';
 		case 'font_color':
-			return '#main a { color: ' + value + '; }';
+			return '#main a, #top_strip a { color: ' + value + '; }';
 		case 'background_color':
 			return 'body { background-color: ' + value + '; }';
 		case 'background_image':
@@ -1311,9 +1533,9 @@ function getStyle(key, value) {
 		case 'background_size':
 			return 'body { background-size: ' + value + '; }';
 		case 'highlight_font_color':
-			return '#main a:hover { color: ' + value + '; }';
+			return '#main a:hover, #top_strip a:hover { color: ' + value + '; }';
 		case 'highlight_color':
-			return '#main a:hover { background-color: ' + value + '; }';
+			return '#main a:hover, #top_strip a:hover { background-color: ' + value + '; }';
 		case 'shadow_color':
 			return '#main a:hover { box-shadow: 0 0 ' + scale(getConfig('shadow_blur'), 7, 100) + 'px ' + value + '; }';
 		case 'shadow_blur':
@@ -1337,14 +1559,14 @@ function getStyle(key, value) {
 			return '#main { left: ' + scale(value, 0, margin/2, -margin/2) + '%; }';
 		case 'v_margin':
 			return '#main { margin-top: ' + (getConfig('auto_scale') ?
-				scale(value, 5, 20) + '%' :
-				scale(value, 80, 600) + 'px') + '; }';
+				'calc(' + scale(value, 5, 20) + '% + ' + TOP_STRIP_HEIGHT + 'px)' :
+				(scale(value, 80, 600) + TOP_STRIP_HEIGHT) + 'px') + '; }';
 		case 'hide_options':
 			return '#options_button { opacity: 0; }';
 		case 'css':
 			return value;
 		case 'auto_scale':
-			return value ? null : '#main { margin-top: 80px; width: 1000px; }';
+			return value ? null : '#main { margin-top: ' + (80 + TOP_STRIP_HEIGHT) + 'px; width: 1000px; }';
 		default:
 			return null;
 	}
@@ -1567,6 +1789,31 @@ function initSettings() {
 	chrome.bookmarks.getTree(function(result) {
 		var placeholder = document.getElementById('options_show_bookmarks');
 		var nodes = result[0].children;
+
+		// top strip folder selector
+		var folderSelect = document.getElementById('options_top_strip_folder');
+		if (folderSelect && folderSelect.childNodes.length === 0) {
+			var noneOption = document.createElement('option');
+			noneOption.value = '';
+			noneOption.innerText = 'None';
+			folderSelect.appendChild(noneOption);
+
+			var appendFolderOptions = function(folderNodes, depth) {
+				for (var i = 0; i < folderNodes.length; i++) {
+					var folder = folderNodes[i];
+					if (!folder || !folder.children || folder.url)
+						continue;
+
+					var option = document.createElement('option');
+					option.value = folder.id;
+					option.innerText = new Array(depth + 1).join('  ') + (folder.title || '(Untitled folder)');
+					folderSelect.appendChild(option);
+					appendFolderOptions(folder.children, depth + 1);
+				}
+			};
+			appendFolderOptions(nodes, 0);
+		}
+
 		for (var i = 0; i < nodes.length; i++) {
 			var key = 'show_' + nodes[i].id;
 			config[key] = 1;
