@@ -1287,6 +1287,7 @@ var config = {
 	shadow_color: '#57b0ff',
 	folder_icon_color: '#555555',
 	connector_line_color: '#8c8c8c',
+	top_strip_divider_color: '#E1E3E1',
 	background_image_file: '',
 	background_image: '',
 	background_align: 'left top',
@@ -1326,7 +1327,8 @@ var SYSTEM_THEME_LIGHT = 'Default';
 var SYSTEM_THEME_DARK = 'Midnight';
 var SYSTEM_THEME_DARK_OVERRIDES = {
 	font_color: '#EEEEEE',
-	background_color: '#393E46'
+	background_color: '#393E46',
+	top_strip_divider_color: '#444746'
 };
 var systemThemeMedia = null;
 
@@ -1545,6 +1547,8 @@ function getStyle(key, value) {
 			return '#main a:hover { box-shadow: 0 0 ' + scale(getConfig('shadow_blur'), 7, 100) + 'px ' + value + '; }';
 		case 'connector_line_color':
 			return '#main ul ul > li.folder-row:before, #main ul ul > li.folder-row:after { border-left-color: ' + value + '; }';
+		case 'top_strip_divider_color':
+			return '#top_strip { border-bottom-color: ' + value + '; }';
 		case 'folder_icon_color':
 			return '#main a.folder .icon, #main a.open .icon { color: ' + value + '; }';
 		case 'shadow_blur':

@@ -25,7 +25,7 @@ body {
 	white-space: nowrap;
 	background: transparent;
 	backdrop-filter: none;
-	border-bottom: none;
+	border-bottom: 1px solid #E1E3E1;
 	z-index: 100;
 }
 #main {
