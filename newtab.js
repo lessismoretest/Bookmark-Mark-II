@@ -1099,6 +1099,10 @@ var config = {
 var SYSTEM_THEME_NAME = 'System';
 var SYSTEM_THEME_LIGHT = 'Default';
 var SYSTEM_THEME_DARK = 'Midnight';
+var SYSTEM_THEME_DARK_OVERRIDES = {
+	font_color: '#EEEEEE',
+	background_color: '#393E46'
+};
 var systemThemeMedia = null;
 
 // color theme values
@@ -1204,7 +1208,16 @@ function resolveThemeName(themeName) {
 
 function applySelectedTheme(themeName) {
 	themeName = themeName || getConfig('theme');
-	theme = themes[resolveThemeName(themeName)] || {};
+	var resolvedThemeName = resolveThemeName(themeName);
+	theme = themes[resolvedThemeName] || {};
+	if (themeName === SYSTEM_THEME_NAME && resolvedThemeName === SYSTEM_THEME_DARK) {
+		var mergedTheme = {};
+		for (var key in theme)
+			mergedTheme[key] = theme[key];
+		for (var overrideKey in SYSTEM_THEME_DARK_OVERRIDES)
+			mergedTheme[overrideKey] = SYSTEM_THEME_DARK_OVERRIDES[overrideKey];
+		theme = mergedTheme;
+	}
 }
 
 function refreshThemeFromSystem() {
