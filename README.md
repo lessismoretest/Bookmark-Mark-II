@@ -27,6 +27,8 @@ Screenshots
 ![](media/shot.3.png)
 ![](media/shot.4.png)
 ![](media/shot.5.png)
+![](media/day.png)
+![](media/night.png)
 
 
 License
