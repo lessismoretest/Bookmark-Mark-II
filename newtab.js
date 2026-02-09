@@ -1291,6 +1291,7 @@ var config = {
 	background_size: 'auto',
 	shadow_blur: 1,
 	highlight_round: 1,
+	folder_icon_shape: 'default',
 	fade: 1,
 	spacing: 1,
 	width: 1,
@@ -1542,6 +1543,25 @@ function getStyle(key, value) {
 			return '#main a:hover { box-shadow: 0 0 ' + scale(value, 7, 100) + 'px ' + getConfig('shadow_color') + '; }';
 		case 'highlight_round':
 			return '#main a { border-radius: ' + scale(value, .2, 1.5) + 'em; }';
+		case 'folder_icon_shape':
+			if (value == 'circle')
+				return '#main a.folder .icon, #main a.open .icon { ' +
+					'border-radius: 50%; ' +
+					'box-sizing: border-box; ' +
+					'width: 11px; ' +
+					'height: 11px; ' +
+					'margin: 0 .55em 0 .15em; ' +
+					'background-image: none !important; ' +
+					' } ' +
+					'#main a.folder .icon { ' +
+					'background-color: currentColor; ' +
+					'border: 2px solid currentColor; ' +
+					' } ' +
+					'#main a.open .icon { ' +
+					'background-color: transparent; ' +
+					'border: 2px solid currentColor; ' +
+					' }';
+			return null;
 		case 'fade':
 			return '#main a { transition-duration: ' + scale(value, .2, 1) + 's; }';
 		case 'slide':
