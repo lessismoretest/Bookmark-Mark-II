@@ -3,6 +3,9 @@ Humble New Tab Page
 
 Redesigned new tab page featuring your bookmarks, apps, most visited, and recently closed in a custom layout.
 
+Bookmark-Mark-II is a derivative work and pays tribute to the original project:
+[Humble New Tab Page](https://github.com/ibillingsley/HumbleNewTabPage).
+
 ![](media/shot.1.png)
 
 ### Features
