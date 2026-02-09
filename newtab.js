@@ -67,6 +67,7 @@ function render(node, target) {
 
 	// folder
 	if (node.children) {
+		li.classList.add('folder-row');
 		// render children
 		if (a.open || getConfig('remember_open') && localStorage.getItem('open.' + node.id)) {
 			setClass(a, node, true);
@@ -1284,6 +1285,8 @@ var config = {
 	highlight_color: '#e4f4ff',
 	highlight_font_color: '#000000',
 	shadow_color: '#57b0ff',
+	folder_icon_color: '#555555',
+	connector_line_color: '#8c8c8c',
 	background_image_file: '',
 	background_image: '',
 	background_align: 'left top',
@@ -1292,6 +1295,7 @@ var config = {
 	shadow_blur: 1,
 	highlight_round: 1,
 	folder_icon_shape: 'default',
+	sibling_connector_lines: 0,
 	fade: 1,
 	spacing: 1,
 	width: 1,
@@ -1539,6 +1543,10 @@ function getStyle(key, value) {
 			return '#main a:hover, #top_strip a:hover { background-color: ' + value + '; }';
 		case 'shadow_color':
 			return '#main a:hover { box-shadow: 0 0 ' + scale(getConfig('shadow_blur'), 7, 100) + 'px ' + value + '; }';
+		case 'connector_line_color':
+			return '#main ul ul > li.folder-row:before, #main ul ul > li.folder-row:after { border-left-color: ' + value + '; }';
+		case 'folder_icon_color':
+			return '#main a.folder .icon, #main a.open .icon { color: ' + value + '; }';
 		case 'shadow_blur':
 			return '#main a:hover { box-shadow: 0 0 ' + scale(value, 7, 100) + 'px ' + getConfig('shadow_color') + '; }';
 		case 'highlight_round':
@@ -1561,7 +1569,75 @@ function getStyle(key, value) {
 					'background-color: transparent; ' +
 					'border: 2px solid currentColor; ' +
 					' }';
-			return null;
+			return '#main a.folder .icon, #main a.open .icon { ' +
+				'width: 10px; ' +
+				'height: 10px; ' +
+				'box-sizing: border-box; ' +
+				'margin: 0 .55em 0 .2em; ' +
+				'background-image: none !important; ' +
+				'border-radius: 0; ' +
+				'border: 0; ' +
+				' } ' +
+				'#main a.folder .icon { ' +
+				'background-color: currentColor; ' +
+				'-webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 10 10\'><polygon points=\'1,1 9,5 1,9\' fill=\'white\'/></svg>"); ' +
+				'-webkit-mask-size: 100% 100%; ' +
+				'-webkit-mask-repeat: no-repeat; ' +
+				'mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 10 10\'><polygon points=\'1,1 9,5 1,9\' fill=\'white\'/></svg>"); ' +
+				'mask-size: 100% 100%; ' +
+				'mask-repeat: no-repeat; ' +
+				' } ' +
+				'#main a.open .icon { ' +
+				'background-color: currentColor; ' +
+				'-webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 10 10\'><polygon points=\'5,9 1,1 9,1\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linejoin=\'round\'/></svg>"); ' +
+				'-webkit-mask-size: 100% 100%; ' +
+				'-webkit-mask-repeat: no-repeat; ' +
+				'mask-image: url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 10 10\'><polygon points=\'5,9 1,1 9,1\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linejoin=\'round\'/></svg>"); ' +
+				'mask-size: 100% 100%; ' +
+				'mask-repeat: no-repeat; ' +
+				' }';
+		case 'sibling_connector_lines':
+			if (!value)
+				return null;
+			var fontSize = getConfig('font_size');
+			var spacingValue = getConfig('spacing');
+			var rowHeightPx = scale(spacingValue, 2, 5.6, .8) * fontSize;
+			var leftPaddingPx = scale(spacingValue, .8, 2, .4) * fontSize;
+			var isCircleIcon = getConfig('folder_icon_shape') == 'circle';
+			var iconWidthPx = isCircleIcon ? 11 : 10;
+			var iconHeightPx = iconWidthPx;
+			var iconNudgeTopPx = isCircleIcon ? 0 : 0;
+			var iconCenterOffsetPx = isCircleIcon ? (0.15 * fontSize + 5.5) : (0.2 * fontSize + 4);
+			var iconTopPx = Math.round((((rowHeightPx - iconHeightPx) / 2) + iconNudgeTopPx) * 100) / 100;
+			if (iconTopPx < 0)
+				iconTopPx = 0;
+			var iconBottomPx = Math.round((iconTopPx + iconHeightPx) * 100) / 100;
+			var lineX = Math.round((leftPaddingPx + iconCenterOffsetPx) * 100) / 100;
+			return '#main ul ul > li.folder-row { position: relative; } ' +
+				'#main ul ul > li.folder-row:before { ' +
+				'content: ""; ' +
+				'position: absolute; ' +
+				'left: ' + lineX + 'px; ' +
+				'top: -.45em; ' +
+				'height: calc(' + iconTopPx + 'px + .45em); ' +
+				'border-left: 1px solid ' + getConfig('connector_line_color') + '; ' +
+				'pointer-events: none; ' +
+				'} ' +
+				'#main ul ul > li.folder-row:after { ' +
+				'content: ""; ' +
+				'position: absolute; ' +
+				'left: ' + lineX + 'px; ' +
+				'top: ' + iconBottomPx + 'px; ' +
+				'bottom: -.45em; ' +
+				'border-left: 1px solid ' + getConfig('connector_line_color') + '; ' +
+				'pointer-events: none; ' +
+				'} ' +
+				'#main ul ul > li.folder-row:first-child:before, ' +
+				'#main ul ul > li:not(.folder-row) + li.folder-row:before { ' +
+				'display: none; } ' +
+				'#main ul ul > li.folder-row:last-child:after, ' +
+				'#main ul ul > li.folder-row:has(+ li:not(.folder-row)):after { ' +
+				'display: none; }';
 		case 'fade':
 			return '#main a { transition-duration: ' + scale(value, .2, 1) + 's; }';
 		case 'slide':
@@ -1615,7 +1691,7 @@ function onChange(key, value) {
 	if (value == null)
 		value = getConfig(key);
 
-	if (value != config[key]) {
+	if (value != config[key] || key == 'folder_icon_shape') {
 		var css = getStyle(key, value);
 		if (css) {
 			var style;
@@ -1640,6 +1716,12 @@ function onChange(key, value) {
 		onChange('h_pos');
 	else if (key == 'shadow_blur')
 		onChange('shadow_color');
+	else if (key == 'connector_line_color')
+		onChange('sibling_connector_lines');
+	else if (key == 'folder_icon_color')
+		onChange('folder_icon_shape');
+	else if (key == 'spacing' || key == 'font_size' || key == 'folder_icon_shape')
+		onChange('sibling_connector_lines');
 	else if (key == 'auto_scale') {
 		onChange('width');
 		onChange('v_margin');
