@@ -10,6 +10,7 @@
 <div id="top_strip"></div>
 <div id="main">
 </div>
+<div id="rotating_text"></div>
 <a id="options_button" title="Options" tabindex="0"></a>
 <a id="zen_button" title="Zen mode" tabindex="0">🧘🏻</a>
 <div id="options">
@@ -48,6 +49,11 @@
 		<label class="subopt"><span>Number of items</span><input id="options_number_closed" type="number" min="1" max="25"/></label>
 		<label><span>Other devices</span><input id="options_show_devices" type="checkbox"/></label>
 	</fieldset>
+	<fieldset>
+		<legend>Bottom text</legend>
+		<label><span>Show bottom text</span><input id="options_show_rotating_text" type="checkbox"/></label>
+		<label><textarea id="options_rotating_texts" placeholder="One line per entry"></textarea></label>
+	</fieldset>
 	</div><div class="section">
 	<fieldset>
 		<legend>Font</legend>
@@ -75,6 +81,7 @@
 		<label><span>Shadow</span><input id="options_shadow_color" type="color"/></label>
 		<label><span>Folder icon</span><input id="options_folder_icon_color" type="color"/></label>
 		<label><span>Connector line</span><input id="options_connector_line_color" type="color"/></label>
+		<label><span>Bottom text</span><input id="options_rotating_text_color" type="color"/></label>
 	</fieldset>
 	<fieldset>
 		<legend>Layout</legend>

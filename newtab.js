@@ -1,6 +1,7 @@
 'use strict';
 
 var TOP_STRIP_HEIGHT = 44;
+var ROTATING_TEXT_INDEX_KEY = 'rotating_text.index';
 var topStripDragId = null;
 var topStripDragged = false;
 var topStripDropTarget = null;
@@ -161,6 +162,41 @@ function renderColumns() {
 
 	enableDragDrop();
 	renderTopStrip();
+}
+
+function getRotatingTextLines() {
+	var text = String(getConfig('rotating_texts') || '');
+	var rawLines = text.split(/\r?\n/);
+	var lines = [];
+	for (var i = 0; i < rawLines.length; i++) {
+		var line = rawLines[i].trim();
+		if (line)
+			lines.push(line);
+	}
+	return lines;
+}
+
+function renderRotatingText(advanceIndex) {
+	var node = document.getElementById('rotating_text');
+	if (!node)
+		return;
+
+	var lines = getRotatingTextLines();
+	if (!lines.length) {
+		node.textContent = '';
+		node.style.display = 'none';
+		return;
+	}
+
+	var index = Number(localStorage.getItem(ROTATING_TEXT_INDEX_KEY));
+	if (!isFinite(index) || index < 0)
+		index = 0;
+
+	node.textContent = lines[index % lines.length];
+	node.style.display = '';
+
+	if (advanceIndex)
+		localStorage.setItem(ROTATING_TEXT_INDEX_KEY, String((index + 1) % lines.length));
 }
 
 function getTopStripOrder(folderId) {
@@ -1287,6 +1323,7 @@ var config = {
 	shadow_color: '#57b0ff',
 	folder_icon_color: '#555555',
 	connector_line_color: '#8c8c8c',
+	rotating_text_color: '#555555',
 	top_strip_divider_color: '#E1E3E1',
 	background_image_file: '',
 	background_image: '',
@@ -1320,6 +1357,8 @@ var config = {
 	number_closed: 10,
 	number_recent: 10,
 	top_strip_folder: '',
+	rotating_texts: '',
+	show_rotating_text: 1,
 	zen_mode: 0
 };
 
@@ -1329,6 +1368,7 @@ var SYSTEM_THEME_DARK = 'Midnight';
 var SYSTEM_THEME_DARK_OVERRIDES = {
 	font_color: '#EEEEEE',
 	background_color: '#393E46',
+	rotating_text_color: '#EEEEEE',
 	top_strip_divider_color: '#444746'
 };
 var systemThemeMedia = null;
@@ -1548,6 +1588,10 @@ function getStyle(key, value) {
 			return '#main a:hover { box-shadow: 0 0 ' + scale(getConfig('shadow_blur'), 7, 100) + 'px ' + value + '; }';
 		case 'connector_line_color':
 			return '#main ul ul > li.folder-row:before, #main ul ul > li.folder-row:after { border-left-color: ' + value + '; }';
+		case 'rotating_text_color':
+			return '#rotating_text { color: ' + value + '; }';
+		case 'show_rotating_text':
+			return value ? null : '#rotating_text { display: none !important; }';
 		case 'top_strip_divider_color':
 			return '#top_strip { border-bottom-color: ' + value + '; }';
 		case 'folder_icon_color':
@@ -1665,7 +1709,7 @@ function getStyle(key, value) {
 		case 'hide_options':
 			return '#options_button { opacity: 0; }';
 		case 'zen_mode':
-			return value ? '#top_strip, #main, #options_button { display: none !important; }' : null;
+			return value ? '#top_strip, #main, #options_button, #rotating_text { display: none !important; }' : null;
 		case 'css':
 			return value;
 		case 'auto_scale':
@@ -1729,6 +1773,8 @@ function onChange(key, value) {
 		onChange('folder_icon_shape');
 	else if (key == 'spacing' || key == 'font_size' || key == 'folder_icon_shape')
 		onChange('sibling_connector_lines');
+	else if (key == 'rotating_texts')
+		renderRotatingText(false);
 	else if (key == 'auto_scale') {
 		onChange('width');
 		onChange('v_margin');
@@ -2000,6 +2046,7 @@ function showOptions(show) {
 
 // initialize page
 loadSettings();
+renderRotatingText(true);
 initSystemThemeListener();
 loadColumns();
 
