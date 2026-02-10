@@ -42,8 +42,10 @@ Changelog
 
 ### Version 1.26.3 - Unreleased
 
-- Added a `System` theme option that automatically switches between light and dark themes based on OS/browser color scheme
-- Added a new `Apple` style theme
+- Added a fixed top horizontal bookmarks strip
+- Added configurable folder expand/collapse icons
+- Added folder tree connector lines
+- Added a `System` theme option that automatically follows OS/browser light and dark mode
 
 ### Version 1.26.2 - April 9, 2025
 
