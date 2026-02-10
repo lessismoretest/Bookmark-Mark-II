@@ -13,6 +13,7 @@ Bookmark-Mark-II is a derivative work and pays tribute to the original project:
 - Simple, clean design
 - Highly customizable
 - Fast loading and lightweight
+- Optional Zen mode for a fully blank new tab
 
 [Download for Chrome](https://chrome.google.com/webstore/detail/mfgdmpfihlmdekaclngibpjhdebndhdj)
 
@@ -46,6 +47,7 @@ Changelog
 - Added configurable folder expand/collapse icons
 - Added folder tree connector lines
 - Added a `System` theme option that automatically follows OS/browser light and dark mode
+- Added a `Zen mode` option to hide all page content and show a blank view
 
 ### Version 1.26.2 - April 9, 2025
 

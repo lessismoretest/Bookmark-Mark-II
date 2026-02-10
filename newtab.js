@@ -1319,7 +1319,8 @@ var config = {
 	number_top: 10,
 	number_closed: 10,
 	number_recent: 10,
-	top_strip_folder: ''
+	top_strip_folder: '',
+	zen_mode: 0
 };
 
 var SYSTEM_THEME_NAME = 'System';
@@ -1663,6 +1664,8 @@ function getStyle(key, value) {
 				(scale(value, 80, 600) + TOP_STRIP_HEIGHT) + 'px') + '; }';
 		case 'hide_options':
 			return '#options_button { opacity: 0; }';
+		case 'zen_mode':
+			return value ? '#top_strip, #main, #options_button { display: none !important; }' : null;
 		case 'css':
 			return value;
 		case 'auto_scale':
@@ -2021,6 +2024,10 @@ window.onresize = function(event) {
 // load options panel
 document.getElementById('options_button').onclick = function() {
 	showOptions(true);
+	return false;
+};
+document.getElementById('zen_button').onclick = function() {
+	setConfig('zen_mode', getConfig('zen_mode') ? 0 : 1);
 	return false;
 };
 if (location.search === '?options')
