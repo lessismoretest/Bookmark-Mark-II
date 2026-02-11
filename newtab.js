@@ -1324,6 +1324,7 @@ var config = {
 	folder_icon_color: '#555555',
 	connector_line_color: '#8c8c8c',
 	rotating_text_color: '#555555',
+	rotating_text_align: 'left',
 	top_strip_divider_color: '#E1E3E1',
 	background_image_file: '',
 	background_image: '',
@@ -1590,6 +1591,12 @@ function getStyle(key, value) {
 			return '#main ul ul > li.folder-row:before, #main ul ul > li.folder-row:after { border-left-color: ' + value + '; }';
 		case 'rotating_text_color':
 			return '#rotating_text { color: ' + value + '; }';
+		case 'rotating_text_align':
+			if (value == 'center')
+				return '#rotating_text { left: 50%; right: auto; transform: translateX(-50%); text-align: center; max-width: calc(100vw - 24px); }';
+			if (value == 'right')
+				return '#rotating_text { right: 12px; left: auto; transform: none; text-align: right; }';
+			return '#rotating_text { left: 12px; right: auto; transform: none; text-align: left; }';
 		case 'show_rotating_text':
 			return value ? null : '#rotating_text { display: none !important; }';
 		case 'top_strip_divider_color':
