@@ -25,6 +25,8 @@ function render(node, target) {
 	a.innerText = text;
 	if (node.id != null)
 		a.setAttribute('data-node-id', node.id);
+	if (node.parentId != null)
+		a.setAttribute('data-parent-id', node.parentId);
 
 	if (node.tooltip) a.title = node.tooltip;
 	setClass(a, node);
@@ -84,6 +86,8 @@ function render(node, target) {
 
 	} else if (node.id == 'apps')
 		enableDragFolder(node, a);
+	else
+		enableDragBookmark(node, a);
 
 	target.appendChild(li);
 	return li;
@@ -636,24 +640,133 @@ function closeMenu(ul) {
 }
 
 var dragIds;
+var dragBookmarkId = null;
+var dragBookmarkParentId = null;
+var bookmarkDropTarget = null;
+var bookmarkDropAfter = false;
+
+function clearBookmarkDropTarget() {
+	if (!bookmarkDropTarget)
+		return;
+	bookmarkDropTarget.style.borderTop = null;
+	bookmarkDropTarget.style.borderBottom = null;
+	bookmarkDropTarget.style.margin = null;
+	bookmarkDropTarget = null;
+	bookmarkDropAfter = false;
+}
+
+function setBookmarkDropTarget(target, placeAfter) {
+	if (!target)
+		return;
+	if (bookmarkDropTarget === target && bookmarkDropAfter === placeAfter)
+		return;
+	clearBookmarkDropTarget();
+	bookmarkDropTarget = target;
+	bookmarkDropAfter = placeAfter;
+	var bordercss = 'solid 2px ' + getConfig('font_color');
+	if (placeAfter) {
+		target.style.borderBottom = bordercss;
+		target.style.margin = '0 0 -2px 0';
+	} else {
+		target.style.borderTop = bordercss;
+		target.style.margin = '-2px 0 0 0';
+	}
+}
+
+function getRowIndex(li) {
+	var i = 0;
+	while (li && li.previousSibling) {
+		li = li.previousSibling;
+		i++;
+	}
+	return i;
+}
+
+function isNumericId(value) {
+	return /^\d+$/.test(String(value || ''));
+}
+
+function findAnchorTarget(node) {
+	while (node && node.tagName !== 'A')
+		node = node.parentNode;
+	return node && node.tagName === 'A' ? node : null;
+}
+
+function moveBookmarkToFolderEnd(bookmarkId, folderId) {
+	chrome.bookmarks.getChildren(String(folderId), function(children) {
+		chrome.bookmarks.move(String(bookmarkId), {
+			parentId: String(folderId),
+			index: children ? children.length : 0
+		}, function() {
+			loadColumns();
+		});
+	});
+}
+
+function tryDropBookmarkByTarget(targetNode) {
+	if (!dragBookmarkId)
+		return false;
+
+	var target = findAnchorTarget(targetNode);
+	if (!target)
+		return false;
+
+	var targetId = target.getAttribute('data-node-id');
+	var targetParentId = target.getAttribute('data-parent-id');
+	var isFolderTarget = (target.classList.contains('folder') || target.classList.contains('open')) && isNumericId(targetId);
+
+	// drop on folder title: append bookmark to that folder
+	if (isFolderTarget) {
+		moveBookmarkToFolderEnd(dragBookmarkId, targetId);
+		dragBookmarkId = null;
+		dragBookmarkParentId = null;
+		clearBookmarkDropTarget();
+		return true;
+	}
+
+	// drop on empty placeholder inside folder
+	if (target.classList.contains('empty')) {
+		var wrap = target.parentNode && target.parentNode.parentNode && target.parentNode.parentNode.parentNode;
+		var folderAnchor = wrap && wrap.previousSibling && wrap.previousSibling.tagName == 'A' ? wrap.previousSibling : null;
+		var folderId = folderAnchor ? folderAnchor.getAttribute('data-node-id') : null;
+		if (isNumericId(folderId)) {
+			moveBookmarkToFolderEnd(dragBookmarkId, folderId);
+			dragBookmarkId = null;
+			dragBookmarkParentId = null;
+			clearBookmarkDropTarget();
+			return true;
+		}
+	}
+
+	// drop on bookmark item: reorder into target bookmark parent
+	if (isNumericId(targetId) && isNumericId(targetParentId)) {
+		var targetLi = target.parentNode;
+		var dragLi = targetLi && targetLi.parentNode ? targetLi.parentNode.querySelector('a[data-node-id="' + dragBookmarkId + '"]') : null;
+		dragLi = dragLi ? dragLi.parentNode : null;
+		var fromIndex = dragLi ? getRowIndex(dragLi) : -1;
+		var toIndex = getRowIndex(targetLi) + (bookmarkDropAfter ? 1 : 0);
+		if (targetParentId === dragBookmarkParentId && fromIndex > -1 && fromIndex < toIndex)
+			toIndex--;
+		if (toIndex < 0)
+			toIndex = 0;
+
+		chrome.bookmarks.move(dragBookmarkId, { parentId: targetParentId, index: toIndex }, function() {
+			loadColumns();
+		});
+		dragBookmarkId = null;
+		dragBookmarkParentId = null;
+		clearBookmarkDropTarget();
+		return true;
+	}
+
+	return false;
+}
 
 // enable drag and drop of column
 function enableDragColumn(id, column) {
-	if (getConfig('lock'))
-		return;
-
-	column.draggable = true;
-
-	column.ondragstart = function(event) {
-		dragIds = columns[id];
-		event.dataTransfer.effectAllowed = 'move';
-		this.classList.add('dragstart');
-	};
-	column.ondragend = function(event) {
-		dragIds = null;
-		this.classList.remove('dragstart');
-		clearDropTarget();
-	};
+	column.draggable = false;
+	column.ondragstart = null;
+	column.ondragend = null;
 }
 
 var dropTarget;
@@ -674,6 +787,71 @@ function enableDragFolder(node, a) {
 		dragIds = null;
 		this.classList.remove('dragstart');
 		clearDropTarget();
+		clearBookmarkDropTarget();
+	};
+
+	// allow dropping bookmarks into this folder
+	a.ondragover = function(event) {
+		if (!dragBookmarkId || !isNumericId(node.id))
+			return;
+		event.preventDefault();
+		event.stopPropagation();
+	};
+
+	a.ondrop = function(event) {
+		if (!dragBookmarkId || !isNumericId(node.id))
+			return;
+		event.preventDefault();
+		event.stopPropagation();
+		tryDropBookmarkByTarget(event.target);
+	};
+}
+
+// enable drag and drop for individual bookmarks (same parent only)
+function enableDragBookmark(node, a) {
+	if (!node || !node.url || !isNumericId(node.id))
+		return;
+
+	a.draggable = true;
+
+	a.ondragstart = function(event) {
+		dragIds = null;
+		dragBookmarkId = String(node.id);
+		dragBookmarkParentId = String(node.parentId || '');
+		event.stopPropagation();
+		event.dataTransfer.effectAllowed = 'move';
+		event.dataTransfer.setData('text/plain', dragBookmarkId);
+		this.classList.add('dragstart');
+	};
+
+	a.ondragend = function() {
+		dragBookmarkId = null;
+		dragBookmarkParentId = null;
+		this.classList.remove('dragstart');
+		clearBookmarkDropTarget();
+		clearDropTarget();
+	};
+
+	a.ondragover = function(event) {
+		if (!dragBookmarkId)
+			return;
+		var targetParentId = this.getAttribute('data-parent-id');
+		var targetId = this.getAttribute('data-node-id');
+		if (!isNumericId(targetId) || !isNumericId(targetParentId))
+			return;
+
+		event.preventDefault();
+		event.stopPropagation();
+		var rect = this.parentNode.getBoundingClientRect();
+		setBookmarkDropTarget(this.parentNode, event.clientY - rect.top > rect.height / 2);
+	};
+
+	a.ondrop = function(event) {
+		if (!dragBookmarkId)
+			return;
+		event.preventDefault();
+		event.stopPropagation();
+		tryDropBookmarkByTarget(event.target);
 	};
 }
 
@@ -689,6 +867,10 @@ function enableDragDrop() {
 	}
 
 	main.ondragover = function(event) {
+		if (dragBookmarkId) {
+			event.preventDefault();
+			return false;
+		}
 		event.preventDefault();
 		event.dataTransfer.dropEffect = 'move';
 		// highlight drop target
@@ -720,9 +902,15 @@ function enableDragDrop() {
 
 	main.ondragleave = function(event) {
 		clearDropTarget();
+		clearBookmarkDropTarget();
 	};
 
 	main.ondrop = function(event) {
+		if (dragBookmarkId) {
+			tryDropBookmarkByTarget(event.target);
+			clearBookmarkDropTarget();
+			return false;
+		}
 		event.stopPropagation();
 
 		var target = getDropTarget(event);
