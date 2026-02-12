@@ -564,6 +564,18 @@ function getMenuItems(node) {
 		});
 	if (Number(node.id))
 		items.push({
+			label: 'Copy folder links',
+			action: function() {
+				copyFolderLinksToClipboard(node.id, function(success, count) {
+					if (success)
+						alert('Copied Markdown with ' + count + ' link(s) to clipboard.');
+					else
+						alert('Failed to copy links to clipboard.');
+				});
+			}
+		});
+	if (Number(node.id))
+		items.push({
 			label: 'Create subfolder',
 			action: function() {
 				chrome.bookmarks.create({
@@ -1284,6 +1296,84 @@ function openLinks(node) {
 		getChildrenFunction(node)(function(result) {
 			for (var i = 0; i < result.length; i++)
 				openLink(result[i], 2);
+		});
+	});
+}
+
+function copyTextToClipboard(text, callback) {
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(text).then(function() {
+			if (callback) callback(true);
+		}).catch(function() {
+			var ta = document.createElement('textarea');
+			ta.value = text;
+			ta.setAttribute('readonly', '');
+			ta.style.position = 'fixed';
+			ta.style.left = '-9999px';
+			document.body.appendChild(ta);
+			ta.select();
+			var ok = false;
+			try {
+				ok = document.execCommand('copy');
+			} catch (e) {
+				ok = false;
+			}
+			document.body.removeChild(ta);
+			if (callback) callback(ok);
+		});
+		return;
+	}
+
+	var input = document.createElement('textarea');
+	input.value = text;
+	input.setAttribute('readonly', '');
+	input.style.position = 'fixed';
+	input.style.left = '-9999px';
+	document.body.appendChild(input);
+	input.select();
+	var success = false;
+	try {
+		success = document.execCommand('copy');
+	} catch (e) {
+		success = false;
+	}
+	document.body.removeChild(input);
+	if (callback) callback(success);
+}
+
+function copyFolderLinksToClipboard(folderId, done) {
+	chrome.bookmarks.getSubTree(String(folderId), function(result) {
+		var escapeMd = function(text) {
+			return String(text || '').replace(/([\\`*_[\]()])/g, '\\$1');
+		};
+		var lines = [];
+		var counter = { links: 0 };
+
+		var walkFolder = function(folderNode, depth) {
+			var title = escapeMd(folderNode.title || 'Untitled folder');
+			if (depth === 0)
+				lines.push('# ' + title);
+			else
+				lines.push(new Array(depth).join('  ') + '- **' + title + '**');
+
+			var children = folderNode.children || [];
+			for (var i = 0; i < children.length; i++) {
+				var child = children[i];
+				if (child.url) {
+					var linkTitle = escapeMd(child.title || child.url);
+					lines.push(new Array(depth + 1).join('  ') + '- [' + linkTitle + '](' + child.url + ')');
+					counter.links++;
+				} else if (child.children) {
+					walkFolder(child, depth + 1);
+				}
+			}
+		};
+
+		if (result && result[0])
+			walkFolder(result[0], 0);
+
+		copyTextToClipboard(lines.join('\n'), function(success) {
+			if (done) done(success, counter.links);
 		});
 	});
 }
