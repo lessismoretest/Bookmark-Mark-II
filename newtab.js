@@ -564,6 +564,46 @@ function getMenuItems(node) {
 		});
 	if (Number(node.id))
 		items.push({
+			label: 'Create subfolder',
+			action: function() {
+				chrome.bookmarks.create({
+					parentId: String(node.id),
+					title: 'New Folder'
+				}, function() {
+					loadColumns();
+				});
+			}
+		});
+	if (Number(node.id))
+		items.push({
+			label: 'Rename folder',
+			action: function() {
+				var currentTitle = String(node.title || '');
+				var nextTitle = prompt('Rename folder', currentTitle);
+				if (nextTitle == null)
+					return;
+				nextTitle = String(nextTitle).trim();
+				if (!nextTitle || nextTitle == currentTitle)
+					return;
+				chrome.bookmarks.update(String(node.id), { title: nextTitle }, function() {
+					loadColumns();
+				});
+			}
+		});
+	if (Number(node.id))
+		items.push({
+			label: 'Delete folder',
+			action: function() {
+				var folderTitle = String(node.title || 'Untitled folder');
+				if (!confirm('Delete folder "' + folderTitle + '" and all its contents?'))
+					return;
+				chrome.bookmarks.removeTree(String(node.id), function() {
+					loadColumns();
+				});
+			}
+		});
+	if (Number(node.id))
+		items.push({
 			label: 'Edit bookmarks',
 			action: function() {
 				openLink({ url: 'chrome://bookmarks/?id=' + node.id }, 1);
